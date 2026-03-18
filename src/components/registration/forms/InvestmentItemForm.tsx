@@ -1,0 +1,66 @@
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import type { InvestmentItemConfig } from "@/types/itemConfig";
+
+type FormValue = Omit<InvestmentItemConfig, "id" | "name" | "type" | "color">;
+
+interface Props {
+  value: FormValue;
+  onChange: (value: FormValue) => void;
+}
+
+export default function InvestmentItemForm({ value, onChange }: Props) {
+  function update(partial: Partial<FormValue>) {
+    onChange({ ...value, ...partial });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>初期投資額（円）</Label>
+          <Input
+            type="number"
+            min={0}
+            value={value.initialAmount}
+            onChange={(e) => update({ initialAmount: Number(e.target.value) })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>月次積立額（円）</Label>
+          <Input
+            type="number"
+            min={0}
+            value={value.monthlyContribution}
+            onChange={(e) =>
+              update({ monthlyContribution: Number(e.target.value) })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>年利（%）</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.1}
+            value={(value.annualInterestRate * 100).toFixed(1)}
+            onChange={(e) =>
+              update({ annualInterestRate: Number(e.target.value) / 100 })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>開始日</Label>
+          <Input
+            type="month"
+            value={value.startDate.slice(0, 7)}
+            onChange={(e) => update({ startDate: e.target.value + "-01" })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
