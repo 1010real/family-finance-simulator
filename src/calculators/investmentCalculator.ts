@@ -22,18 +22,22 @@ export const investmentCalculator: Calculator<InvestmentItemConfig> = {
         continue;
       }
 
-      if (i === 0 || (current.year === investStart.year && current.month === investStart.month)) {
-        // First month: add initial amount + first contribution
+      const prevBalance = balance;
+
+      if (current.year === investStart.year && current.month === investStart.month) {
+        // First month: add initial amount + first contribution (no interest yet)
         balance = config.initialAmount + config.monthlyContribution;
       } else {
         // Subsequent months: apply interest then add contribution
         balance = balance * (1 + monthlyRate) + config.monthlyContribution;
       }
 
+      // Return the monthly delta (wealth gained this month), not the cumulative balance.
+      // This keeps investment data on the same scale as other monthly cash-flow items.
       result.push({
         year: current.year,
         month: current.month,
-        amount: balance, // positive: asset value
+        amount: balance - prevBalance,
       });
     }
 
