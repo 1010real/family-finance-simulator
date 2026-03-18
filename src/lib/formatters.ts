@@ -13,7 +13,7 @@ export function formatShortNumber(amount: number): string {
     return `${sign}${(abs / 100_000_000).toFixed(1)}億`;
   }
   if (abs >= 10_000) {
-    return `${sign}${(abs / 10_000).toFixed(0)}万`;
+    return `${sign}${(abs / 10_000).toFixed(1)}万`;
   }
   return formatCurrency(amount);
 }
