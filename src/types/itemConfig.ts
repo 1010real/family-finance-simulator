@@ -46,6 +46,8 @@ export interface InvestmentItemConfig extends ItemBase {
   monthlyContribution: number;
   annualInterestRate: number;
   startDate: string;
+  /** When true the initial deposit appears as a cash outflow in the first month's bar */
+  includeInitialInCashFlow: boolean;
 }
 
 export interface OneTimeItemConfig extends ItemBase {

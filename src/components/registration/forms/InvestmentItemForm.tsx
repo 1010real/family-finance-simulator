@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import type { InvestmentItemConfig } from "@/types/itemConfig";
 
 type FormValue = Omit<InvestmentItemConfig, "id" | "name" | "type" | "color">;
@@ -60,6 +61,18 @@ export default function InvestmentItemForm({ value, onChange }: Props) {
             onChange={(e) => update({ startDate: e.target.value + "-01" })}
           />
         </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Switch
+          checked={value.includeInitialInCashFlow}
+          onCheckedChange={(checked) =>
+            update({ includeInitialInCashFlow: checked })
+          }
+        />
+        <Label className="leading-snug">
+          初期投資額を初月のキャッシュフローに反映する
+        </Label>
       </div>
     </div>
   );

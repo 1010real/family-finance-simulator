@@ -25,11 +25,14 @@ export const investmentCalculator: Calculator<InvestmentItemConfig> = {
       if (current.year === investStart.year && current.month === investStart.month) {
         // First month: initial amount + first contribution, no interest yet
         balance = config.initialAmount + config.monthlyContribution;
+        // Cash outflow: include initial amount only when the toggle is on
+        const amount = config.includeInitialInCashFlow
+          ? -(config.initialAmount + config.monthlyContribution)
+          : -config.monthlyContribution;
         result.push({
           year: current.year,
           month: current.month,
-          // Cash outflow: initial deposit + first contribution
-          amount: -(config.initialAmount + config.monthlyContribution),
+          amount,
           balance,
         });
       } else {

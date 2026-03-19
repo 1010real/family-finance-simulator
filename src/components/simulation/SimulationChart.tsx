@@ -24,6 +24,109 @@ interface Props {
   viewMode: ViewMode;
 }
 
+// ---------------------------------------------------------------------------
+// Y-axis zero-alignment helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the fraction (0–1) of the total axis range that sits below zero.
+ * e.g. min=-200, max=400 → 200/(200+400) ≈ 0.333
+ */
+function zeroFrac(min: number, max: number): number {
+  if (min >= 0) return 0;
+  if (max <= 0) return 1;
+  return Math.abs(min) / (Math.abs(min) + max);
+}
+
+/**
+ * Stretches [min, max] so that zero sits at `targetFrac` of the total range.
+ * Only ever expands the range — never shrinks it.
+ */
+function stretchDomain(min: number, max: number, targetFrac: number): [number, number] {
+  if (targetFrac <= 0) return [Math.min(min, 0), max];
+  if (targetFrac >= 1) return [min, Math.max(max, 0)];
+
+  const currentFrac = zeroFrac(min, max);
+  if (currentFrac < targetFrac) {
+    const newMin = -(targetFrac / (1 - targetFrac)) * max;
+    return [Math.min(newMin, min), max];
+  } else {
+    const newMax = ((1 - targetFrac) / targetFrac) * Math.abs(min);
+    return [min, Math.max(newMax, max)];
+  }
+}
+
+/**
+ * Generates "nice" round tick values covering [min, max] and always including 0.
+ */
+function niceTicks(min: number, max: number, targetCount = 6): number[] {
+  const range = max - min || 1;
+  const roughStep = range / targetCount;
+  const mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const step =
+    ([1, 2, 5, 10] as const).map((f) => mag * f).find((s) => s >= roughStep) ?? mag * 10;
+
+  const ticks: number[] = [];
+  const startTick = Math.floor(min / step) * step;
+  for (let t = startTick; t <= max + step * 0.01; t = Math.round((t + step) / step) * step) {
+    const rounded = Math.round(t / step) * step;
+    if (rounded >= min - step * 0.01) ticks.push(rounded);
+  }
+
+  // Always include 0 so the baseline is clearly labelled on both axes
+  if (!ticks.includes(0)) {
+    ticks.push(0);
+    ticks.sort((a, b) => a - b);
+  }
+
+  return ticks;
+}
+
+/**
+ * Computes axis domains for left (flow) and right (balance) axes so that
+ * their zero lines are at the same vertical position in the chart.
+ */
+function computeAlignedDomains(
+  data: ChartDataPoint[],
+  result: SimulationResult
+): { left: [number, number]; right: [number, number] } {
+  let lMin = 0, lMax = 0, rMin = 0, rMax = 0;
+
+  for (const point of data) {
+    for (const item of result.items) {
+      const v = (point[item.itemId] as number) ?? 0;
+      if (v < lMin) lMin = v;
+      if (v > lMax) lMax = v;
+
+      if (item.isBalanceItem) {
+        const bg = (point[item.itemId + BG_SUFFIX] as number) ?? 0;
+        if (bg < rMin) rMin = bg;
+        if (bg > rMax) rMax = bg;
+      }
+    }
+    const t = (point[TOTAL_KEY] as number) ?? 0;
+    if (t < lMin) lMin = t;
+    if (t > lMax) lMax = t;
+  }
+
+  // 10 % padding on each extreme
+  const lPad = (Math.abs(lMin) + lMax) * 0.1 || 1;
+  const rPad = (Math.abs(rMin) + rMax) * 0.1 || 1;
+  lMin -= lPad; lMax += lPad;
+  rMin -= rPad; rMax += rPad;
+
+  const targetFrac = Math.max(zeroFrac(lMin, lMax), zeroFrac(rMin, rMax));
+
+  return {
+    left: stretchDomain(lMin, lMax, targetFrac),
+    right: stretchDomain(rMin, rMax, targetFrac),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Chart data builder
+// ---------------------------------------------------------------------------
+
 function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartDataPoint[] {
   if (result.items.length === 0) return [];
   if (result.simulatedMonths === 0) return [];
@@ -63,11 +166,9 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
       }
       const point = yearMap.get(dp.year)!;
 
-      // Monthly flow: sum over the year
       const prev = typeof point[item.itemId] === "number" ? (point[item.itemId] as number) : 0;
       point[item.itemId] = Math.round(prev + dp.amount);
 
-      // Background balance: year-end value (overwritten each month, last wins)
       if (item.isBalanceItem) {
         point[item.itemId + BG_SUFFIX] = Math.round(dp.balance ?? 0);
       }
@@ -85,6 +186,10 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
   return sorted;
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export default function SimulationChart({ result, viewMode }: Props) {
   const data = buildChartData(result, viewMode);
   const balanceItems = result.items.filter((i) => i.isBalanceItem);
@@ -99,6 +204,10 @@ export default function SimulationChart({ result, viewMode }: Props) {
     );
   }
 
+  const domains = hasBalanceItems ? computeAlignedDomains(data, result) : null;
+  const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
+  const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
+
   function tooltipFormatter(value: number, name: string): [string, string] {
     if (name === TOTAL_KEY) return [formatShortNumber(value), "収支合計"];
 
@@ -106,7 +215,6 @@ export default function SimulationChart({ result, viewMode }: Props) {
       const itemId = name.slice(0, -BG_SUFFIX.length);
       const item = result.items.find((i) => i.itemId === itemId);
       const label = item ? `${item.itemName}（${item.balanceLabel}）` : name;
-      // Show absolute value — sign is conveyed by context (残高 = asset, 残債 = liability)
       return [formatShortNumber(Math.abs(value)), label];
     }
 
@@ -118,6 +226,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={data}
+        stackOffset="sign"
         margin={{ top: 16, right: hasBalanceItems ? 80 : 24, left: 16, bottom: 40 }}
       >
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -136,6 +245,8 @@ export default function SimulationChart({ result, viewMode }: Props) {
           tickFormatter={formatShortNumber}
           tick={{ fontSize: 11 }}
           width={72}
+          domain={domains ? domains.left : ["auto", "auto"]}
+          ticks={leftTicks}
           className="fill-muted-foreground"
         />
 
@@ -147,6 +258,8 @@ export default function SimulationChart({ result, viewMode }: Props) {
             tickFormatter={formatShortNumber}
             tick={{ fontSize: 11 }}
             width={72}
+            domain={domains ? domains.right : ["auto", "auto"]}
+            ticks={rightTicks}
             className="fill-muted-foreground"
           />
         )}
@@ -159,7 +272,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
         <ReferenceLine yAxisId="left" y={0} stroke="hsl(var(--border))" strokeWidth={2} />
 
         {/*
-          Background areas rendered FIRST so they appear behind bars in the SVG paint order.
+          Background areas rendered FIRST so they appear behind bars in SVG paint order.
           Investment balance → positive area growing upward (right axis).
           Loan remaining debt → negative area shrinking toward zero (right axis).
         */}
@@ -182,7 +295,6 @@ export default function SimulationChart({ result, viewMode }: Props) {
 
         {/*
           Cash-flow bars rendered AFTER areas — appear in front.
-          All items (including investment/loan) show their monthly flow here.
           Positive = income, negative = expense / payment / contribution.
         */}
         {result.items.map((item) => (
@@ -193,7 +305,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
             name={item.itemName}
             fill={item.color}
             stackId="stack"
-            maxBarSize={48}
+            maxBarSize={20}
           />
         ))}
 
