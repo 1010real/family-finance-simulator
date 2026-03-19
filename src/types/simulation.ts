@@ -9,7 +9,8 @@ export interface ItemSimulationResult {
   itemId: string;
   itemName: string;
   color: string;
-  isBalanceItem: boolean; // true for investment items — chart shows cumulative balance
+  isBalanceItem: boolean; // true for investment/loan items — also shows background area
+  balanceLabel: string;   // label shown in tooltip for the background area (e.g. "残高", "残債")
   dataPoints: MonthlyDataPoint[];
 }
 
