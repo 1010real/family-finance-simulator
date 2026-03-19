@@ -93,6 +93,7 @@ function computeAlignedDomains(
   let lMin = 0, lMax = 0, rMin = 0, rMax = 0;
 
   for (const point of data) {
+    let posSum = 0, negSum = 0;
     for (const item of result.items) {
       const v = (point[item.itemId] as number) ?? 0;
       if (v < lMin) lMin = v;
@@ -100,10 +101,11 @@ function computeAlignedDomains(
 
       if (item.isBalanceItem) {
         const bg = (point[item.itemId + BG_SUFFIX] as number) ?? 0;
-        if (bg < rMin) rMin = bg;
-        if (bg > rMax) rMax = bg;
+        if (bg >= 0) posSum += bg; else negSum += bg;
       }
     }
+    if (posSum > rMax) rMax = posSum;
+    if (negSum < rMin) rMin = negSum;
     const t = (point[TOTAL_KEY] as number) ?? 0;
     if (t < lMin) lMin = t;
     if (t > lMax) lMax = t;
@@ -287,6 +289,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
             stroke={item.color}
             strokeOpacity={0.4}
             strokeWidth={1}
+            stackId="balance-stack"
             dot={false}
             activeDot={false}
             isAnimationActive={false}
