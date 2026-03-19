@@ -22,7 +22,7 @@ export default function ItemList({ items, onUpdate, onDelete }: Props) {
         <ItemCard
           key={item.id}
           item={item}
-          itemCount={items.length}
+          usedColors={items.map((i) => i.color)}
           onUpdate={onUpdate}
           onDelete={onDelete}
         />

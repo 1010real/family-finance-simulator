@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { formatShortNumber } from "@/lib/formatters";
 
 interface Props {
   item: ItemConfig;
-  itemCount: number;
+  usedColors: string[];
   onUpdate: (item: ItemConfig) => void;
   onDelete: (id: string) => void;
 }
@@ -30,18 +30,32 @@ function getItemSummary(item: ItemConfig): string {
   }
 }
 
-export default function ItemCard({ item, itemCount, onUpdate, onDelete }: Props) {
+export default function ItemCard({ item, usedColors, onUpdate, onDelete }: Props) {
   const [editOpen, setEditOpen] = useState(false);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <>
       <Card className="group relative">
         <CardContent className="p-3">
           <div className="flex items-start gap-3">
-            <div
-              className="mt-1 h-4 w-4 shrink-0 rounded-full"
-              style={{ backgroundColor: item.color }}
-            />
+            {/* Clickable color dot — triggers native color picker */}
+            <div className="mt-1 shrink-0">
+              <div
+                className="h-4 w-4 rounded-full cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-border transition-shadow"
+                style={{ backgroundColor: item.color }}
+                title="クリックして色を変更"
+                onClick={() => colorInputRef.current?.click()}
+              />
+              <input
+                ref={colorInputRef}
+                type="color"
+                value={item.color}
+                className="sr-only"
+                onChange={(e) => onUpdate({ ...item, color: e.target.value })}
+              />
+            </div>
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm truncate">{item.name}</span>
@@ -78,7 +92,7 @@ export default function ItemCard({ item, itemCount, onUpdate, onDelete }: Props)
         onClose={() => setEditOpen(false)}
         onConfirm={onUpdate}
         initialItem={item}
-        itemCount={itemCount}
+        usedColors={usedColors}
       />
     </>
   );

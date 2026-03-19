@@ -56,7 +56,7 @@ export default function ItemRegistrationPanel() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onConfirm={handleAdd}
-        itemCount={items.length}
+        usedColors={items.map((i) => i.color)}
       />
     </div>
   );

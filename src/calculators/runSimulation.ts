@@ -12,6 +12,7 @@ export function runSimulation(
       itemId: item.id,
       itemName: item.name,
       color: item.color,
+      isBalanceItem: item.type === "investment",
       dataPoints: calculateItem(item, ctx),
     })),
     simulatedMonths: ctx.totalMonths,

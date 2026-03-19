@@ -32,7 +32,7 @@ interface Props {
   onClose: () => void;
   onConfirm: (item: ItemConfig) => void;
   initialItem?: ItemConfig;
-  itemCount: number; // used to pick color for new items
+  usedColors: string[]; // colors already in use — new items get a distinct color
 }
 
 const TODAY = new Date().toISOString().slice(0, 7) + "-01";
@@ -53,8 +53,8 @@ function buildDefault(type: ItemType, color: string): ItemConfig {
   }
 }
 
-export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, itemCount }: Props) {
-  const defaultColor = getNextColor(itemCount);
+export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, usedColors }: Props) {
+  const defaultColor = getNextColor(usedColors);
   const [draft, setDraft] = useState<ItemConfig>(
     initialItem ?? buildDefault("fixed", defaultColor)
   );
