@@ -48,14 +48,38 @@ function stretchDomain(min: number, max: number, targetFrac: number): [number, n
 
   const currentFrac = zeroFrac(min, max);
   if (currentFrac < targetFrac) {
-    // Need more negative space: push min further down
     const newMin = -(targetFrac / (1 - targetFrac)) * max;
     return [Math.min(newMin, min), max];
   } else {
-    // Need more positive space: push max further up
     const newMax = ((1 - targetFrac) / targetFrac) * Math.abs(min);
     return [min, Math.max(newMax, max)];
   }
+}
+
+/**
+ * Generates "nice" round tick values covering [min, max] and always including 0.
+ */
+function niceTicks(min: number, max: number, targetCount = 6): number[] {
+  const range = max - min || 1;
+  const roughStep = range / targetCount;
+  const mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const step =
+    ([1, 2, 5, 10] as const).map((f) => mag * f).find((s) => s >= roughStep) ?? mag * 10;
+
+  const ticks: number[] = [];
+  const startTick = Math.floor(min / step) * step;
+  for (let t = startTick; t <= max + step * 0.01; t = Math.round((t + step) / step) * step) {
+    const rounded = Math.round(t / step) * step;
+    if (rounded >= min - step * 0.01) ticks.push(rounded);
+  }
+
+  // Always include 0 so the baseline is clearly labelled on both axes
+  if (!ticks.includes(0)) {
+    ticks.push(0);
+    ticks.sort((a, b) => a - b);
+  }
+
+  return ticks;
 }
 
 /**
@@ -181,6 +205,8 @@ export default function SimulationChart({ result, viewMode }: Props) {
   }
 
   const domains = hasBalanceItems ? computeAlignedDomains(data, result) : null;
+  const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
+  const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
 
   function tooltipFormatter(value: number, name: string): [string, string] {
     if (name === TOTAL_KEY) return [formatShortNumber(value), "収支合計"];
@@ -200,6 +226,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={data}
+        stackOffset="sign"
         margin={{ top: 16, right: hasBalanceItems ? 80 : 24, left: 16, bottom: 40 }}
       >
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -219,6 +246,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
           tick={{ fontSize: 11 }}
           width={72}
           domain={domains ? domains.left : ["auto", "auto"]}
+          ticks={leftTicks}
           className="fill-muted-foreground"
         />
 
@@ -231,6 +259,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
             tick={{ fontSize: 11 }}
             width={72}
             domain={domains ? domains.right : ["auto", "auto"]}
+            ticks={rightTicks}
             className="fill-muted-foreground"
           />
         )}
@@ -276,7 +305,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
             name={item.itemName}
             fill={item.color}
             stackId="stack"
-            maxBarSize={48}
+            maxBarSize={20}
           />
         ))}
 
