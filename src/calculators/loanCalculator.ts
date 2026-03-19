@@ -24,6 +24,8 @@ export const loanCalculator: Calculator<LoanItemConfig> = {
         (1 - Math.pow(1 + monthlyRate, -config.termMonths));
     }
 
+    let remainingDebt = config.principal;
+
     for (let i = 0; i < ctx.totalMonths; i++) {
       const current = addMonths(base, i);
 
@@ -32,10 +34,19 @@ export const loanCalculator: Calculator<LoanItemConfig> = {
         continue;
       }
 
+      // Reduce remaining debt by principal portion of this month's payment
+      if (monthlyRate > 0) {
+        remainingDebt = remainingDebt * (1 + monthlyRate) - monthlyPayment;
+      } else {
+        remainingDebt -= monthlyPayment;
+      }
+      remainingDebt = Math.max(0, remainingDebt);
+
       result.push({
         year: current.year,
         month: current.month,
-        amount: -monthlyPayment, // loan repayment is always an expense
+        amount: -monthlyPayment,
+        balance: -remainingDebt, // negative: outstanding liability
       });
     }
 

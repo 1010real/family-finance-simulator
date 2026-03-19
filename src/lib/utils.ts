@@ -20,6 +20,10 @@ export const ITEM_COLORS = [
   "#c47b8a",
 ];
 
-export function getNextColor(usedCount: number): string {
-  return ITEM_COLORS[usedCount % ITEM_COLORS.length];
+/** Returns the first palette color not already used; falls back to cycling. */
+export function getNextColor(usedColors: string[]): string {
+  for (const color of ITEM_COLORS) {
+    if (!usedColors.includes(color)) return color;
+  }
+  return ITEM_COLORS[usedColors.length % ITEM_COLORS.length];
 }

@@ -22,23 +22,27 @@ export const investmentCalculator: Calculator<InvestmentItemConfig> = {
         continue;
       }
 
-      const prevBalance = balance;
-
       if (current.year === investStart.year && current.month === investStart.month) {
-        // First month: add initial amount + first contribution (no interest yet)
+        // First month: initial amount + first contribution, no interest yet
         balance = config.initialAmount + config.monthlyContribution;
+        result.push({
+          year: current.year,
+          month: current.month,
+          // Cash outflow: initial deposit + first contribution
+          amount: -(config.initialAmount + config.monthlyContribution),
+          balance,
+        });
       } else {
-        // Subsequent months: apply interest then add contribution
+        // Subsequent months: apply compound interest then add contribution
         balance = balance * (1 + monthlyRate) + config.monthlyContribution;
+        result.push({
+          year: current.year,
+          month: current.month,
+          // Cash outflow: only the monthly contribution (interest is unrealised gain)
+          amount: -config.monthlyContribution,
+          balance,
+        });
       }
-
-      // Return the monthly delta (wealth gained this month), not the cumulative balance.
-      // This keeps investment data on the same scale as other monthly cash-flow items.
-      result.push({
-        year: current.year,
-        month: current.month,
-        amount: balance - prevBalance,
-      });
     }
 
     return result;
