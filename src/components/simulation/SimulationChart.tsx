@@ -29,35 +29,7 @@ interface Props {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the fraction (0–1) of the total axis range that sits below zero.
- * e.g. min=-200, max=400 → 200/(200+400) ≈ 0.333
- */
-function zeroFrac(min: number, max: number): number {
-  if (min >= 0) return 0;
-  if (max <= 0) return 1;
-  return Math.abs(min) / (Math.abs(min) + max);
-}
-
-/**
- * Stretches [min, max] so that zero sits at `targetFrac` of the total range.
- * Only ever expands the range — never shrinks it.
- */
-function stretchDomain(min: number, max: number, targetFrac: number): [number, number] {
-  if (targetFrac <= 0) return [Math.min(min, 0), max];
-  if (targetFrac >= 1) return [min, Math.max(max, 0)];
-
-  const currentFrac = zeroFrac(min, max);
-  if (currentFrac < targetFrac) {
-    const newMin = -(targetFrac / (1 - targetFrac)) * max;
-    return [Math.min(newMin, min), max];
-  } else {
-    const newMax = ((1 - targetFrac) / targetFrac) * Math.abs(min);
-    return [min, Math.max(newMax, max)];
-  }
-}
-
-/**
- * Generates "nice" round tick values covering [min, max] and always including 0.
+ * Generates "nice" round tick values covering [-absMax, +absMax] and always including 0.
  */
 function niceTicks(min: number, max: number, targetCount = 6): number[] {
   const range = max - min || 1;
@@ -73,7 +45,6 @@ function niceTicks(min: number, max: number, targetCount = 6): number[] {
     if (rounded >= min - step * 0.01) ticks.push(rounded);
   }
 
-  // Always include 0 so the baseline is clearly labelled on both axes
   if (!ticks.includes(0)) {
     ticks.push(0);
     ticks.sort((a, b) => a - b);
@@ -83,43 +54,48 @@ function niceTicks(min: number, max: number, targetCount = 6): number[] {
 }
 
 /**
- * Computes axis domains for left (flow) and right (balance) axes so that
- * their zero lines are at the same vertical position in the chart.
+ * Computes symmetric axis domains for left (flow) and right (balance) axes.
+ * Both axes use [-absMax, +absMax] so ¥0 is always at the vertical center,
+ * and the two zero lines are guaranteed to overlap.
  */
 function computeAlignedDomains(
   data: ChartDataPoint[],
   result: SimulationResult
 ): { left: [number, number]; right: [number, number] } {
-  let lMin = 0, lMax = 0, rMin = 0, rMax = 0;
+  let lAbs = 0, rAbs = 0;
 
   for (const point of data) {
+    let posSum = 0, negSum = 0;
     for (const item of result.items) {
       const v = (point[item.itemId] as number) ?? 0;
-      if (v < lMin) lMin = v;
-      if (v > lMax) lMax = v;
+      if (Math.abs(v) > lAbs) lAbs = Math.abs(v);
 
       if (item.isBalanceItem) {
         const bg = (point[item.itemId + BG_SUFFIX] as number) ?? 0;
-        if (bg < rMin) rMin = bg;
-        if (bg > rMax) rMax = bg;
+        if (bg >= 0) posSum += bg; else negSum += bg;
       }
     }
+    rAbs = Math.max(rAbs, posSum, Math.abs(negSum));
     const t = (point[TOTAL_KEY] as number) ?? 0;
-    if (t < lMin) lMin = t;
-    if (t > lMax) lMax = t;
+    if (Math.abs(t) > lAbs) lAbs = Math.abs(t);
   }
 
-  // 10 % padding on each extreme
-  const lPad = (Math.abs(lMin) + lMax) * 0.1 || 1;
-  const rPad = (Math.abs(rMin) + rMax) * 0.1 || 1;
-  lMin -= lPad; lMax += lPad;
-  rMin -= rPad; rMax += rPad;
+  // 10% padding then ceil to a nice round number so ticks land cleanly
+  const lRaw = lAbs * 1.1 || 1;
+  const rRaw = rAbs * 1.1 || 1;
 
-  const targetFrac = Math.max(zeroFrac(lMin, lMax), zeroFrac(rMin, rMax));
+  function ceilNice(v: number): number {
+    const mag = Math.pow(10, Math.floor(Math.log10(v)));
+    const step = ([1, 2, 5, 10] as const).map((f) => mag * f).find((s) => s >= v) ?? mag * 10;
+    return step;
+  }
+
+  const lMax = ceilNice(lRaw);
+  const rMax = ceilNice(rRaw);
 
   return {
-    left: stretchDomain(lMin, lMax, targetFrac),
-    right: stretchDomain(rMin, rMax, targetFrac),
+    left: [-lMax, lMax],
+    right: [-rMax, rMax],
   };
 }
 
@@ -287,6 +263,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
             stroke={item.color}
             strokeOpacity={0.4}
             strokeWidth={1}
+            stackId="balance-stack"
             dot={false}
             activeDot={false}
             isAnimationActive={false}
