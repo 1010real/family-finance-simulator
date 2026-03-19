@@ -28,33 +28,6 @@ interface Props {
 // Y-axis zero-alignment helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Returns the fraction (0–1) of the total axis range that sits below zero.
- * e.g. min=-200, max=400 → 200/(200+400) ≈ 0.333
- */
-function zeroFrac(min: number, max: number): number {
-  if (min >= 0) return 0;
-  if (max <= 0) return 1;
-  return Math.abs(min) / (Math.abs(min) + max);
-}
-
-/**
- * Stretches [min, max] so that zero sits at `targetFrac` of the total range.
- * Only ever expands the range — never shrinks it.
- */
-function stretchDomain(min: number, max: number, targetFrac: number): [number, number] {
-  if (targetFrac <= 0) return [Math.min(min, 0), max];
-  if (targetFrac >= 1) return [min, Math.max(max, 0)];
-
-  const currentFrac = zeroFrac(min, max);
-  if (currentFrac < targetFrac) {
-    const newMin = -(targetFrac / (1 - targetFrac)) * max;
-    return [Math.min(newMin, min), max];
-  } else {
-    const newMax = ((1 - targetFrac) / targetFrac) * Math.abs(min);
-    return [min, Math.max(newMax, max)];
-  }
-}
 
 /**
  * Generates "nice" round tick values covering [min, max] and always including 0.
@@ -83,13 +56,17 @@ function niceTicks(min: number, max: number, targetCount = 6): number[] {
 }
 
 /**
- * Computes axis domains for left (flow) and right (balance) axes so that
- * their zero lines are at the same vertical position in the chart.
+ * Computes axis domains and ticks for left (flow) and right (balance) axes so
+ * that their zero lines sit at the same vertical position in the chart.
+ *
+ * Strategy: generate left ticks first, count how many are above/below zero,
+ * then generate right ticks using the same above/below counts so recharts
+ * places zero at an identical tick-index on both axes.
  */
 function computeAlignedDomains(
   data: ChartDataPoint[],
   result: SimulationResult
-): { left: [number, number]; right: [number, number] } {
+): { left: [number, number]; right: [number, number]; leftTicks: number[]; rightTicks: number[] } {
   let lMin = 0, lMax = 0, rMin = 0, rMax = 0;
 
   for (const point of data) {
@@ -114,14 +91,32 @@ function computeAlignedDomains(
   // 10 % padding on each extreme
   const lPad = (Math.abs(lMin) + lMax) * 0.1 || 1;
   const rPad = (Math.abs(rMin) + rMax) * 0.1 || 1;
-  lMin -= lPad; lMax += lPad;
-  rMin -= rPad; rMax += rPad;
 
-  const targetFrac = Math.max(zeroFrac(lMin, lMax), zeroFrac(rMin, rMax));
+  // Left ticks: use niceTicks as usual
+  const leftTicks = niceTicks(lMin - lPad, lMax + lPad);
+  const negCount = leftTicks.filter((t) => t < 0).length;
+  const posCount = leftTicks.filter((t) => t > 0).length;
+
+  // Right ticks: pick a step that covers the data with the same neg/pos count
+  const rMaxPadded = rMax + rPad;
+  const rMinPadded = rMin - rPad;
+  let minStep = 1;
+  if (posCount > 0) minStep = Math.max(minStep, rMaxPadded / posCount);
+  if (negCount > 0) minStep = Math.max(minStep, Math.abs(rMinPadded) / negCount);
+  const rMag = Math.pow(10, Math.floor(Math.log10(minStep)));
+  const rStep =
+    ([1, 2, 5, 10] as const).map((f) => rMag * f).find((s) => s >= minStep) ?? rMag * 10;
+
+  const rightTicks: number[] = [0];
+  for (let i = 1; i <= posCount; i++) rightTicks.push(rStep * i);
+  for (let i = 1; i <= negCount; i++) rightTicks.push(-rStep * i);
+  rightTicks.sort((a, b) => a - b);
 
   return {
-    left: stretchDomain(lMin, lMax, targetFrac),
-    right: stretchDomain(rMin, rMax, targetFrac),
+    left: [leftTicks[0], leftTicks[leftTicks.length - 1]],
+    right: [rightTicks[0], rightTicks[rightTicks.length - 1]],
+    leftTicks,
+    rightTicks,
   };
 }
 
@@ -206,9 +201,10 @@ export default function SimulationChart({ result, viewMode }: Props) {
     );
   }
 
-  const domains = hasBalanceItems ? computeAlignedDomains(data, result) : null;
-  const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
-  const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
+  const aligned = hasBalanceItems ? computeAlignedDomains(data, result) : null;
+  const domains = aligned ? { left: aligned.left, right: aligned.right } : null;
+  const leftTicks = aligned?.leftTicks ?? (domains ? niceTicks(domains.left[0], domains.left[1]) : undefined);
+  const rightTicks = aligned?.rightTicks;
 
   function tooltipFormatter(value: number, name: string): [string, string] {
     if (name === TOTAL_KEY) return [formatShortNumber(value), "収支合計"];
