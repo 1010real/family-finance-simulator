@@ -32,12 +32,19 @@ export interface VariableItemConfig extends ItemBase {
   isExpense: boolean;
 }
 
+export interface SpecialEvent {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+}
+
 export interface LoanItemConfig extends ItemBase {
   type: "loan";
   principal: number;
   annualInterestRate: number;
   termMonths: number;
   startDate: string;
+  specialRepayments: SpecialEvent[];
 }
 
 export interface InvestmentItemConfig extends ItemBase {
@@ -48,6 +55,7 @@ export interface InvestmentItemConfig extends ItemBase {
   startDate: string;
   /** When true the initial deposit appears as a cash outflow in the first month's bar */
   includeInitialInCashFlow: boolean;
+  specialWithdrawals: SpecialEvent[];
 }
 
 export interface OneTimeItemConfig extends ItemBase {

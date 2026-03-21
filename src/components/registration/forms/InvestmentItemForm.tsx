@@ -2,6 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { InvestmentItemConfig } from "@/types/itemConfig";
+import SpecialEventList from "./SpecialEventList";
 
 type FormValue = Omit<InvestmentItemConfig, "id" | "name" | "type" | "color">;
 
@@ -74,6 +75,13 @@ export default function InvestmentItemForm({ value, onChange }: Props) {
           初期投資額を初月のキャッシュフローに反映する
         </Label>
       </div>
+
+      <SpecialEventList
+        events={value.specialWithdrawals}
+        onChange={(events) => update({ specialWithdrawals: events })}
+        label="一部引き出しイベント"
+        amountLabel="引き出し額（円）"
+      />
     </div>
   );
 }

@@ -45,9 +45,9 @@ function buildDefault(type: ItemType, color: string): ItemConfig {
     case "variable":
       return { ...base, type, initialAmount: 0, annualChangeRate: 0.01, startDate: TODAY, endDate: null, isExpense: false };
     case "loan":
-      return { ...base, type, principal: 0, annualInterestRate: 0.01, termMonths: 120, startDate: TODAY };
+      return { ...base, type, principal: 0, annualInterestRate: 0.01, termMonths: 120, startDate: TODAY, specialRepayments: [] };
     case "investment":
-      return { ...base, type, initialAmount: 0, monthlyContribution: 0, annualInterestRate: 0.03, startDate: TODAY, includeInitialInCashFlow: true };
+      return { ...base, type, initialAmount: 0, monthlyContribution: 0, annualInterestRate: 0.03, startDate: TODAY, includeInitialInCashFlow: true, specialWithdrawals: [] };
     case "one-time":
       return { ...base, type, amount: 0, date: TODAY, isExpense: false };
   }
