@@ -13,7 +13,7 @@ interface Props {
   amountLabel: string;
 }
 
-export default function SpecialEventList({ events, onChange, label, amountLabel }: Props) {
+export default function SpecialEventList({ events = [], onChange, label, amountLabel }: Props) {
   function addEvent() {
     const today = new Date().toISOString().slice(0, 7) + "-01";
     onChange([...events, { id: uuidv4(), date: today, amount: 0 }]);
