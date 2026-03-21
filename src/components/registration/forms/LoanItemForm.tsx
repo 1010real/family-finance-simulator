@@ -1,6 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import type { LoanItemConfig } from "@/types/itemConfig";
+import SpecialEventList from "./SpecialEventList";
 
 type FormValue = Omit<LoanItemConfig, "id" | "name" | "type" | "color">;
 
@@ -59,6 +60,13 @@ export default function LoanItemForm({ value, onChange }: Props) {
           />
         </div>
       </div>
+
+      <SpecialEventList
+        events={value.specialRepayments}
+        onChange={(events) => update({ specialRepayments: events })}
+        label="繰り上げ返済イベント"
+        amountLabel="返済額（円）"
+      />
     </div>
   );
 }
