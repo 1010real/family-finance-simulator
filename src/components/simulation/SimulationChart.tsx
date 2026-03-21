@@ -65,19 +65,20 @@ function computeAlignedDomains(
   let lAbs = 0, rAbs = 0;
 
   for (const point of data) {
-    let posSum = 0, negSum = 0;
+    let posFlow = 0, negFlow = 0;
+    let posBalance = 0, negBalance = 0;
     for (const item of result.items) {
       const v = (point[item.itemId] as number) ?? 0;
-      if (Math.abs(v) > lAbs) lAbs = Math.abs(v);
+      // Accumulate stacked sums to account for stackOffset="sign"
+      if (v >= 0) posFlow += v; else negFlow += v;
 
       if (item.isBalanceItem) {
         const bg = (point[item.itemId + BG_SUFFIX] as number) ?? 0;
-        if (bg >= 0) posSum += bg; else negSum += bg;
+        if (bg >= 0) posBalance += bg; else negBalance += bg;
       }
     }
-    rAbs = Math.max(rAbs, posSum, Math.abs(negSum));
-    const t = (point[TOTAL_KEY] as number) ?? 0;
-    if (Math.abs(t) > lAbs) lAbs = Math.abs(t);
+    lAbs = Math.max(lAbs, posFlow, Math.abs(negFlow));
+    rAbs = Math.max(rAbs, posBalance, Math.abs(negBalance));
   }
 
   // 10% padding then ceil to a nice round number so ticks land cleanly
