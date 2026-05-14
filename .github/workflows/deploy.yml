@@ -1,0 +1,51 @@
+name: Deploy to S3
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  S3_BUCKET_NAME: ${{ vars.DEPLOY_S3_BUCKET_NAME }}
+  AWS_REGION: ap-northeast-1
+  IAM_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+
+permissions:
+  id-token: write # OIDC トークン発行に必須
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.IAM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync to S3
+        run: |
+          # index.html はキャッシュさせない（SPA ルーティングのため）
+          aws s3 cp dist/index.html s3://$S3_BUCKET_NAME/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+          # ハッシュ付きアセットは長期キャッシュ可（不要ファイルは削除）
+          aws s3 sync dist/ s3://$S3_BUCKET_NAME/ \
+            --exclude "index.html" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --delete
