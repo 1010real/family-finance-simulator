@@ -3,7 +3,7 @@ name: Deploy to S3
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
   S3_BUCKET_NAME: ${{ vars.DEPLOY_S3_BUCKET_NAME }}
@@ -11,7 +11,7 @@ env:
   IAM_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
 
 permissions:
-  id-token: write  # OIDC トークン発行に必須
+  id-token: write # OIDC トークン発行に必須
   contents: read
 
 jobs:
