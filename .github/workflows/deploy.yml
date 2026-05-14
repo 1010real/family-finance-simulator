@@ -6,9 +6,9 @@ on:
       - master
 
 env:
-  S3_BUCKET_NAME: your-bucket-name
+  S3_BUCKET_NAME: ${{ vars.DEPLOY_S3_BUCKET_NAME }}
   AWS_REGION: ap-northeast-1
-  IAM_ROLE_ARN: arn:aws:iam::123456789012:role/github-deploy-role
+  IAM_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
 
 permissions:
   id-token: write  # OIDC トークン発行に必須
