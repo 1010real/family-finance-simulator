@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   ComposedChart,
   Bar,
@@ -185,19 +186,53 @@ export default function SimulationChart({ result, viewMode }: Props) {
   const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
   const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
 
-  function tooltipFormatter(value: number, name: string): [string, string] {
-    if (name === TOTAL_KEY) return [formatShortNumber(value), "収支合計"];
+  const renderTooltip = useCallback(
+    ({ active, payload, label }: { active?: boolean; payload?: { dataKey?: string | number; value?: number | string; color?: string }[]; label?: string }) => {
+      if (!active || !payload?.length) return null;
 
-    if (typeof name === "string" && name.endsWith(BG_SUFFIX)) {
-      const itemId = name.slice(0, -BG_SUFFIX.length);
-      const item = result.items.find((i) => i.itemId === itemId);
-      const label = item ? `${item.itemName}（${item.balanceLabel}）` : name;
-      return [formatShortNumber(Math.abs(value)), label];
-    }
+      const entries = payload
+        .map((entry) => {
+          const dataKey = String(entry.dataKey ?? "");
+          const value = Number(entry.value ?? 0);
 
-    const item = result.items.find((i) => i.itemId === name);
-    return [formatShortNumber(value), item?.itemName ?? name];
-  }
+          // ゼロ値は非表示
+          if (value === 0) return null;
+
+          if (dataKey === TOTAL_KEY) {
+            return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color };
+          }
+
+          if (dataKey.endsWith(BG_SUFFIX)) {
+            const itemId = dataKey.slice(0, -BG_SUFFIX.length);
+            const item = result.items.find((i) => i.itemId === itemId);
+            const itemLabel = item ? `${item.itemName}（${item.balanceLabel}）` : dataKey;
+            return { key: dataKey, label: itemLabel, value: formatShortNumber(Math.abs(value)), color: entry.color };
+          }
+
+          // dataKey = itemId で引くことで同名アイテムを正しく区別する
+          const item = result.items.find((i) => i.itemId === dataKey);
+          if (!item) return null;
+          return { key: dataKey, label: item.itemName, value: formatShortNumber(value), color: entry.color };
+        })
+        .filter((e): e is NonNullable<typeof e> => e !== null);
+
+      if (!entries.length) return null;
+
+      return (
+        <div className="rounded-md border bg-popover px-3 py-2 text-sm shadow-md">
+          <p className="mb-1.5 font-medium">{label}</p>
+          {entries.map((e) => (
+            <div key={e.key} className="flex items-center gap-2 py-0.5">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
+              <span className="text-muted-foreground">{e.label}:</span>
+              <span className="ml-auto pl-4 font-medium tabular-nums">{e.value}</span>
+            </div>
+          ))}
+        </div>
+      );
+    },
+    [result]
+  );
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -241,10 +276,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
           />
         )}
 
-        <Tooltip
-          formatter={tooltipFormatter}
-          contentStyle={{ fontSize: 12, borderRadius: 6 }}
-        />
+        <Tooltip content={renderTooltip} />
 
         <ReferenceLine yAxisId="left" y={0} stroke="hsl(var(--border))" strokeWidth={2} />
 
