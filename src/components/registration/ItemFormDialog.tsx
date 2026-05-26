@@ -74,7 +74,11 @@ export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, 
 
   function handleConfirm() {
     if (!draft.name.trim()) return;
-    onConfirm(draft);
+    // 新規追加の場合は必ず新しいIDを発行する。
+    // Radix UI制御モードではonOpenChange(true)が呼ばれないため
+    // draftのIDが前回の登録済みIDと同じになってしまう問題を防ぐ。
+    const item = initialItem ? draft : { ...draft, id: uuidv4() };
+    onConfirm(item);
     onClose();
   }
 

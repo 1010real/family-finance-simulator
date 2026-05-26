@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useMemo } from "react";
 import {
   ComposedChart,
   Bar,
@@ -19,6 +19,68 @@ import { formatShortNumber } from "@/lib/formatters";
 const TOTAL_KEY = "__total__";
 /** Suffix appended to itemId for background balance/debt area keys */
 const BG_SUFFIX = "_bg";
+
+// ---------------------------------------------------------------------------
+// Custom tooltip
+// ---------------------------------------------------------------------------
+
+interface TooltipEntry {
+  key: string;
+  label: string;
+  value: string;
+  color: string;
+}
+
+interface CustomTooltipProps {
+  result: SimulationResult;
+  // injected by Recharts when cloning the element
+  active?: boolean;
+  payload?: { dataKey?: string | number; value?: number | string; color?: string }[];
+  label?: string;
+}
+
+function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  const entries = payload
+    .map((entry): TooltipEntry | null => {
+      const dataKey = String(entry.dataKey ?? "");
+      const value = Number(entry.value ?? 0);
+
+      if (value === 0) return null;
+
+      if (dataKey === TOTAL_KEY) {
+        return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color ?? "" };
+      }
+
+      if (dataKey.endsWith(BG_SUFFIX)) {
+        const itemId = dataKey.slice(0, -BG_SUFFIX.length);
+        const item = result.items.find((i) => i.itemId === itemId);
+        const itemLabel = item ? `${item.itemName}（${item.balanceLabel}）` : dataKey;
+        return { key: dataKey, label: itemLabel, value: formatShortNumber(Math.abs(value)), color: entry.color ?? "" };
+      }
+
+      const item = result.items.find((i) => i.itemId === dataKey);
+      if (!item) return null;
+      return { key: dataKey, label: item.itemName, value: formatShortNumber(value), color: entry.color ?? "" };
+    })
+    .filter((e): e is TooltipEntry => e !== null);
+
+  if (!entries.length) return null;
+
+  return (
+    <div className="rounded-md border bg-popover px-3 py-2 text-sm shadow-md">
+      <p className="mb-1.5 font-medium">{label}</p>
+      {entries.map((e) => (
+        <div key={e.key} className="flex items-center gap-2 py-0.5">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
+          <span className="text-muted-foreground">{e.label}:</span>
+          <span className="ml-auto pl-4 font-medium tabular-nums">{e.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface Props {
   result: SimulationResult;
@@ -173,6 +235,11 @@ export default function SimulationChart({ result, viewMode }: Props) {
   const balanceItems = result.items.filter((i) => i.isBalanceItem);
   const hasBalanceItems = balanceItems.length > 0;
 
+  // useMemo で要素を安定させる。毎レンダリングで新しい要素を渡すと
+  // Recharts が「content が変わった」と判断して再マウントし、
+  // 前のツールチップ内容が残り続ける問題が起きる。
+  const tooltipContent = useMemo(() => <CustomTooltip result={result} />, [result]);
+
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -185,54 +252,6 @@ export default function SimulationChart({ result, viewMode }: Props) {
   const domains = hasBalanceItems ? computeAlignedDomains(data, result) : null;
   const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
   const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
-
-  const renderTooltip = useCallback(
-    ({ active, payload, label }: { active?: boolean; payload?: { dataKey?: string | number; value?: number | string; color?: string }[]; label?: string }) => {
-      if (!active || !payload?.length) return null;
-
-      const entries = payload
-        .map((entry) => {
-          const dataKey = String(entry.dataKey ?? "");
-          const value = Number(entry.value ?? 0);
-
-          // ゼロ値は非表示
-          if (value === 0) return null;
-
-          if (dataKey === TOTAL_KEY) {
-            return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color };
-          }
-
-          if (dataKey.endsWith(BG_SUFFIX)) {
-            const itemId = dataKey.slice(0, -BG_SUFFIX.length);
-            const item = result.items.find((i) => i.itemId === itemId);
-            const itemLabel = item ? `${item.itemName}（${item.balanceLabel}）` : dataKey;
-            return { key: dataKey, label: itemLabel, value: formatShortNumber(Math.abs(value)), color: entry.color };
-          }
-
-          // dataKey = itemId で引くことで同名アイテムを正しく区別する
-          const item = result.items.find((i) => i.itemId === dataKey);
-          if (!item) return null;
-          return { key: dataKey, label: item.itemName, value: formatShortNumber(value), color: entry.color };
-        })
-        .filter((e): e is NonNullable<typeof e> => e !== null);
-
-      if (!entries.length) return null;
-
-      return (
-        <div className="rounded-md border bg-popover px-3 py-2 text-sm shadow-md">
-          <p className="mb-1.5 font-medium">{label}</p>
-          {entries.map((e) => (
-            <div key={e.key} className="flex items-center gap-2 py-0.5">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
-              <span className="text-muted-foreground">{e.label}:</span>
-              <span className="ml-auto pl-4 font-medium tabular-nums">{e.value}</span>
-            </div>
-          ))}
-        </div>
-      );
-    },
-    [result]
-  );
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -276,7 +295,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
           />
         )}
 
-        <Tooltip content={renderTooltip} />
+        <Tooltip content={tooltipContent} />
 
         <ReferenceLine yAxisId="left" y={0} stroke="hsl(var(--border))" strokeWidth={2} />
 
