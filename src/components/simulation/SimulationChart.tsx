@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   ComposedChart,
   Bar,
@@ -234,6 +235,11 @@ export default function SimulationChart({ result, viewMode }: Props) {
   const balanceItems = result.items.filter((i) => i.isBalanceItem);
   const hasBalanceItems = balanceItems.length > 0;
 
+  // useMemo で要素を安定させる。毎レンダリングで新しい要素を渡すと
+  // Recharts が「content が変わった」と判断して再マウントし、
+  // 前のツールチップ内容が残り続ける問題が起きる。
+  const tooltipContent = useMemo(() => <CustomTooltip result={result} />, [result]);
+
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -289,7 +295,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
           />
         )}
 
-        <Tooltip content={<CustomTooltip result={result} />} />
+        <Tooltip content={tooltipContent} />
 
         <ReferenceLine yAxisId="left" y={0} stroke="hsl(var(--border))" strokeWidth={2} />
 
