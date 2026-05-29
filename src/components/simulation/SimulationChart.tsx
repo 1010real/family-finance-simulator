@@ -17,8 +17,10 @@ import { formatShortNumber } from "@/lib/formatters";
 
 /** Key used for the net cash-flow line */
 const TOTAL_KEY = "__total__";
+/** Key used for the cumulative running cash balance */
+export const CASH_KEY = "__cash__";
 /** Suffix appended to itemId for background balance/debt area keys */
-const BG_SUFFIX = "_bg";
+export const BG_SUFFIX = "_bg";
 
 // ---------------------------------------------------------------------------
 // Custom tooltip
@@ -167,13 +169,14 @@ function computeAlignedDomains(
 // Chart data builder
 // ---------------------------------------------------------------------------
 
-function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartDataPoint[] {
+export function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartDataPoint[] {
   if (result.items.length === 0) return [];
   if (result.simulatedMonths === 0) return [];
   const firstItem = result.items[0];
   if (!firstItem) return [];
 
   if (viewMode === "monthly") {
+    let runningCash = 0;
     return firstItem.dataPoints.map((dp, idx) => {
       const label = `${dp.year}-${String(dp.month).padStart(2, "0")}`;
       const point: ChartDataPoint = { label, [TOTAL_KEY]: 0 };
@@ -190,6 +193,8 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
         }
       }
       point[TOTAL_KEY] = Math.round(total);
+      runningCash += total;
+      point[CASH_KEY] = Math.round(runningCash);
       return point;
     });
   }
@@ -220,8 +225,12 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
   const sorted = Array.from(yearMap.values()).sort((a, b) =>
     String(a.label).localeCompare(String(b.label))
   );
+  let runningCash = 0;
   for (const point of sorted) {
-    point[TOTAL_KEY] = Math.round(yearTotals.get(Number(point.label)) ?? 0);
+    const yearTotal = yearTotals.get(Number(point.label)) ?? 0;
+    point[TOTAL_KEY] = Math.round(yearTotal);
+    runningCash += yearTotal;
+    point[CASH_KEY] = Math.round(runningCash);
   }
   return sorted;
 }
