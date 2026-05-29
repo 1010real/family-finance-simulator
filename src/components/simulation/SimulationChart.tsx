@@ -55,6 +55,10 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
         return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color ?? "" };
       }
 
+      if (dataKey === CASH_KEY) {
+        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: entry.color ?? "" };
+      }
+
       if (dataKey.endsWith(BG_SUFFIX)) {
         const itemId = dataKey.slice(0, -BG_SUFFIX.length);
         const item = result.items.find((i) => i.itemId === itemId);
@@ -142,6 +146,8 @@ function computeAlignedDomains(
         if (bg >= 0) posBalance += bg; else negBalance += bg;
       }
     }
+    const cash = (point[CASH_KEY] as number) ?? 0;
+    if (cash >= 0) posBalance += cash; else negBalance += cash;
     lAbs = Math.max(lAbs, posFlow, Math.abs(negFlow));
     rAbs = Math.max(rAbs, posBalance, Math.abs(negBalance));
   }
@@ -242,7 +248,8 @@ export function buildChartData(result: SimulationResult, viewMode: ViewMode): Ch
 export default function SimulationChart({ result, viewMode }: Props) {
   const data = buildChartData(result, viewMode);
   const balanceItems = result.items.filter((i) => i.isBalanceItem);
-  const hasBalanceItems = balanceItems.length > 0;
+  // Right axis is always shown: cash balance is rendered there even when no loan/investment items exist
+  const hasRightAxis = true;
 
   // useMemo で要素を安定させる。毎レンダリングで新しい要素を渡すと
   // Recharts が「content が変わった」と判断して再マウントし、
@@ -258,16 +265,16 @@ export default function SimulationChart({ result, viewMode }: Props) {
     );
   }
 
-  const domains = hasBalanceItems ? computeAlignedDomains(data, result) : null;
-  const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
-  const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
+  const domains = computeAlignedDomains(data, result);
+  const leftTicks = niceTicks(domains.left[0], domains.left[1]);
+  const rightTicks = niceTicks(domains.right[0], domains.right[1]);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={data}
         stackOffset="sign"
-        margin={{ top: 16, right: hasBalanceItems ? 80 : 24, left: 16, bottom: 40 }}
+        margin={{ top: 16, right: hasRightAxis ? 80 : 24, left: 16, bottom: 40 }}
       >
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
@@ -285,24 +292,22 @@ export default function SimulationChart({ result, viewMode }: Props) {
           tickFormatter={formatShortNumber}
           tick={{ fontSize: 11 }}
           width={72}
-          domain={domains ? domains.left : ["auto", "auto"]}
+          domain={domains.left}
           ticks={leftTicks}
           className="fill-muted-foreground"
         />
 
-        {/* Right axis — cumulative balance / remaining debt areas */}
-        {hasBalanceItems && (
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            tickFormatter={formatShortNumber}
-            tick={{ fontSize: 11 }}
-            width={72}
-            domain={domains ? domains.right : ["auto", "auto"]}
-            ticks={rightTicks}
-            className="fill-muted-foreground"
-          />
-        )}
+        {/* Right axis — cumulative balance / remaining debt / cash areas */}
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tickFormatter={formatShortNumber}
+          tick={{ fontSize: 11 }}
+          width={72}
+          domain={domains.right}
+          ticks={rightTicks}
+          className="fill-muted-foreground"
+        />
 
         <Tooltip content={tooltipContent} />
 
@@ -312,6 +317,7 @@ export default function SimulationChart({ result, viewMode }: Props) {
           Background areas rendered FIRST so they appear behind bars in SVG paint order.
           Investment balance → positive area growing upward (right axis).
           Loan remaining debt → negative area shrinking toward zero (right axis).
+          Cash balance → white area, stacked with other balance items.
         */}
         {balanceItems.map((item) => (
           <Area
@@ -330,6 +336,20 @@ export default function SimulationChart({ result, viewMode }: Props) {
             isAnimationActive={false}
           />
         ))}
+        <Area
+          key={CASH_KEY}
+          yAxisId="right"
+          type="monotone"
+          dataKey={CASH_KEY}
+          fill="white"
+          fillOpacity={0.85}
+          stroke="hsl(var(--border))"
+          strokeWidth={1.5}
+          stackId="balance-stack"
+          dot={false}
+          activeDot={false}
+          isAnimationActive={false}
+        />
 
         {/*
           Cash-flow bars rendered AFTER areas — appear in front.
