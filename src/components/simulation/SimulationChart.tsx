@@ -59,7 +59,7 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
       }
 
       if (dataKey === CASH_KEY) {
-        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: "white", valueColor: flowColor };
+        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: "white", valueColor: "text-green-600" };
       }
 
       if (dataKey.endsWith(BG_SUFFIX)) {
