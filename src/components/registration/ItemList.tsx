@@ -5,9 +5,10 @@ interface Props {
   items: ItemConfig[];
   onUpdate: (item: ItemConfig) => void;
   onDelete: (id: string) => void;
+  onAdd: (item: ItemConfig) => void;
 }
 
-export default function ItemList({ items, onUpdate, onDelete }: Props) {
+export default function ItemList({ items, onUpdate, onDelete, onAdd }: Props) {
   if (items.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground text-sm">
@@ -25,6 +26,7 @@ export default function ItemList({ items, onUpdate, onDelete }: Props) {
           usedColors={items.map((i) => i.color)}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          onAdd={onAdd}
         />
       ))}
     </div>

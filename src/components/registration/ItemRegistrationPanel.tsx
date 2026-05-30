@@ -49,7 +49,7 @@ export default function ItemRegistrationPanel() {
 
         <Separator />
 
-        <ItemList items={items} onUpdate={handleUpdate} onDelete={handleDelete} />
+        <ItemList items={items} onUpdate={handleUpdate} onDelete={handleDelete} onAdd={handleAdd} />
       </div>
 
       <ItemFormDialog
