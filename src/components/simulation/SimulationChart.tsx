@@ -56,7 +56,7 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
       }
 
       if (dataKey === CASH_KEY) {
-        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: entry.color ?? "" };
+        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: "white" };
       }
 
       if (dataKey.endsWith(BG_SUFFIX)) {
@@ -315,10 +315,24 @@ export default function SimulationChart({ result, viewMode }: Props) {
 
         {/*
           Background areas rendered FIRST so they appear behind bars in SVG paint order.
-          Investment balance → positive area growing upward (right axis).
-          Loan remaining debt → negative area shrinking toward zero (right axis).
-          Cash balance → white area, stacked with other balance items.
+          Cash renders first within the stack → bottom layer.
+          Investment balance → positive area on top of cash.
+          Loan remaining debt → negative area below cash.
         */}
+        <Area
+          yAxisId="right"
+          type="monotone"
+          dataKey={CASH_KEY}
+          fill="white"
+          fillOpacity={0.18}
+          stroke="white"
+          strokeOpacity={0.4}
+          strokeWidth={1}
+          stackId="balance-stack"
+          dot={false}
+          activeDot={false}
+          isAnimationActive={false}
+        />
         {balanceItems.map((item) => (
           <Area
             key={item.itemId + BG_SUFFIX}
@@ -336,20 +350,6 @@ export default function SimulationChart({ result, viewMode }: Props) {
             isAnimationActive={false}
           />
         ))}
-        <Area
-          key={CASH_KEY}
-          yAxisId="right"
-          type="monotone"
-          dataKey={CASH_KEY}
-          fill="white"
-          fillOpacity={0.85}
-          stroke="hsl(var(--border))"
-          strokeWidth={1.5}
-          stackId="balance-stack"
-          dot={false}
-          activeDot={false}
-          isAnimationActive={false}
-        />
 
         {/*
           Cash-flow bars rendered AFTER areas — appear in front.
