@@ -1,9 +1,16 @@
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Save, FolderOpen, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -25,6 +32,8 @@ export default function SetManager() {
   const { items, currentSetId, currentSetName, savedSets } = useAppState();
   const dispatch = useAppDispatch();
   const [saveAsName, setSaveAsName] = useState("");
+  const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false);
+  const [saveAsDialogName, setSaveAsDialogName] = useState("");
 
   async function refreshSummaries() {
     const summaries = await getAllItemSetSummaries();
@@ -58,8 +67,13 @@ export default function SetManager() {
     await refreshSummaries();
   }
 
-  async function handleSaveAs() {
-    const name = saveAsName.trim();
+  function openSaveAsDialog() {
+    setSaveAsDialogName(currentSetName);
+    setSaveAsDialogOpen(true);
+  }
+
+  async function handleSaveAsConfirm() {
+    const name = saveAsDialogName.trim();
     if (!name) return;
 
     const now = new Date().toISOString();
@@ -74,7 +88,7 @@ export default function SetManager() {
     await saveItemSet(set);
     dispatch({ type: "SET_CURRENT_SET_ID", payload: set.id });
     dispatch({ type: "SET_CURRENT_SET_NAME", payload: name });
-    setSaveAsName("");
+    setSaveAsDialogOpen(false);
     await refreshSummaries();
   }
 
@@ -88,78 +102,106 @@ export default function SetManager() {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">保存済みセット</Label>
-        <div className="flex gap-2">
-          <Select
-            value={currentSetId ?? ""}
-            onValueChange={(v) => v && handleLoad(v)}
-          >
-            <SelectTrigger className="flex-1 text-sm">
-              <SelectValue placeholder="セットを選択..." />
-            </SelectTrigger>
-            <SelectContent>
-              {savedSets.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {currentSetId && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-destructive hover:text-destructive"
-              onClick={() => currentSetId && handleDelete(currentSetId)}
-              title="現在のセットを削除"
+    <>
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">保存済みセット</Label>
+          <div className="flex gap-2">
+            <Select
+              value={currentSetId ?? ""}
+              onValueChange={(v) => v && handleLoad(v)}
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
+              <SelectTrigger className="flex-1 text-sm">
+                <SelectValue placeholder="セットを選択..." />
+              </SelectTrigger>
+              <SelectContent>
+                {savedSets.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {currentSetId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-destructive hover:text-destructive"
+                onClick={() => currentSetId && handleDelete(currentSetId)}
+                title="現在のセットを削除"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <Separator />
+        <Separator />
 
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">保存</Label>
-        <div className="flex gap-2">
-          <Input
-            placeholder={currentSetName || "セット名を入力..."}
-            value={saveAsName}
-            onChange={(e) => setSaveAsName(e.target.value)}
-            className="flex-1 text-sm"
-          />
-          {currentSetId && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              onClick={handleSave}
-              title="上書き保存"
-              disabled={items.length === 0}
-            >
-              <Save className="h-4 w-4" />
-            </Button>
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">保存</Label>
+          <div className="flex gap-2">
+            <Input
+              placeholder={currentSetName || "セット名を入力..."}
+              value={saveAsName}
+              onChange={(e) => setSaveAsName(e.target.value)}
+              className="flex-1 text-sm"
+            />
+            {currentSetId && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={handleSave}
+                title="上書き保存"
+                disabled={items.length === 0}
+              >
+                <Save className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {currentSetName && (
+            <p className="text-xs text-muted-foreground">
+              現在: <span className="font-medium">{currentSetName}</span>
+            </p>
           )}
           <Button
-            size="icon"
-            className="shrink-0"
-            onClick={handleSaveAs}
-            title="別名で保存"
-            disabled={items.length === 0 || !saveAsName.trim()}
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={openSaveAsDialog}
+            disabled={items.length === 0}
           >
-            <FolderOpen className="h-4 w-4" />
+            別名で保存
           </Button>
         </div>
-        {currentSetName && (
-          <p className="text-xs text-muted-foreground">
-            現在: <span className="font-medium">{currentSetName}</span>
-          </p>
-        )}
       </div>
-    </div>
+
+      <Dialog open={saveAsDialogOpen} onOpenChange={setSaveAsDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>別名で保存</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>セット名</Label>
+            <Input
+              placeholder="セット名を入力..."
+              value={saveAsDialogName}
+              onChange={(e) => setSaveAsDialogName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveAsConfirm()}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveAsDialogOpen(false)}>
+              キャンセル
+            </Button>
+            <Button onClick={handleSaveAsConfirm} disabled={!saveAsDialogName.trim()}>
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
