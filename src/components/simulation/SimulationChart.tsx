@@ -17,8 +17,10 @@ import { formatShortNumber } from "@/lib/formatters";
 
 /** Key used for the net cash-flow line */
 const TOTAL_KEY = "__total__";
+/** Key used for the cumulative running cash balance */
+export const CASH_KEY = "__cash__";
 /** Suffix appended to itemId for background balance/debt area keys */
-const BG_SUFFIX = "_bg";
+export const BG_SUFFIX = "_bg";
 
 // ---------------------------------------------------------------------------
 // Custom tooltip
@@ -51,6 +53,10 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
 
       if (dataKey === TOTAL_KEY) {
         return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color ?? "" };
+      }
+
+      if (dataKey === CASH_KEY) {
+        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: "white" };
       }
 
       if (dataKey.endsWith(BG_SUFFIX)) {
@@ -140,6 +146,8 @@ function computeAlignedDomains(
         if (bg >= 0) posBalance += bg; else negBalance += bg;
       }
     }
+    const cash = (point[CASH_KEY] as number) ?? 0;
+    if (cash >= 0) posBalance += cash; else negBalance += cash;
     lAbs = Math.max(lAbs, posFlow, Math.abs(negFlow));
     rAbs = Math.max(rAbs, posBalance, Math.abs(negBalance));
   }
@@ -167,13 +175,14 @@ function computeAlignedDomains(
 // Chart data builder
 // ---------------------------------------------------------------------------
 
-function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartDataPoint[] {
+export function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartDataPoint[] {
   if (result.items.length === 0) return [];
   if (result.simulatedMonths === 0) return [];
   const firstItem = result.items[0];
   if (!firstItem) return [];
 
   if (viewMode === "monthly") {
+    let runningCash = 0;
     return firstItem.dataPoints.map((dp, idx) => {
       const label = `${dp.year}-${String(dp.month).padStart(2, "0")}`;
       const point: ChartDataPoint = { label, [TOTAL_KEY]: 0 };
@@ -190,6 +199,8 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
         }
       }
       point[TOTAL_KEY] = Math.round(total);
+      runningCash += total;
+      point[CASH_KEY] = Math.round(runningCash);
       return point;
     });
   }
@@ -220,8 +231,12 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
   const sorted = Array.from(yearMap.values()).sort((a, b) =>
     String(a.label).localeCompare(String(b.label))
   );
+  let runningCash = 0;
   for (const point of sorted) {
-    point[TOTAL_KEY] = Math.round(yearTotals.get(Number(point.label)) ?? 0);
+    const yearTotal = yearTotals.get(Number(point.label)) ?? 0;
+    point[TOTAL_KEY] = Math.round(yearTotal);
+    runningCash += yearTotal;
+    point[CASH_KEY] = Math.round(runningCash);
   }
   return sorted;
 }
@@ -233,7 +248,8 @@ function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartData
 export default function SimulationChart({ result, viewMode }: Props) {
   const data = buildChartData(result, viewMode);
   const balanceItems = result.items.filter((i) => i.isBalanceItem);
-  const hasBalanceItems = balanceItems.length > 0;
+  // Right axis is always shown: cash balance is rendered there even when no loan/investment items exist
+  const hasRightAxis = true;
 
   // useMemo で要素を安定させる。毎レンダリングで新しい要素を渡すと
   // Recharts が「content が変わった」と判断して再マウントし、
@@ -249,16 +265,16 @@ export default function SimulationChart({ result, viewMode }: Props) {
     );
   }
 
-  const domains = hasBalanceItems ? computeAlignedDomains(data, result) : null;
-  const leftTicks = domains ? niceTicks(domains.left[0], domains.left[1]) : undefined;
-  const rightTicks = domains ? niceTicks(domains.right[0], domains.right[1]) : undefined;
+  const domains = computeAlignedDomains(data, result);
+  const leftTicks = niceTicks(domains.left[0], domains.left[1]);
+  const rightTicks = niceTicks(domains.right[0], domains.right[1]);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={data}
         stackOffset="sign"
-        margin={{ top: 16, right: hasBalanceItems ? 80 : 24, left: 16, bottom: 40 }}
+        margin={{ top: 16, right: hasRightAxis ? 80 : 24, left: 16, bottom: 40 }}
       >
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
@@ -276,24 +292,22 @@ export default function SimulationChart({ result, viewMode }: Props) {
           tickFormatter={formatShortNumber}
           tick={{ fontSize: 11 }}
           width={72}
-          domain={domains ? domains.left : ["auto", "auto"]}
+          domain={domains.left}
           ticks={leftTicks}
           className="fill-muted-foreground"
         />
 
-        {/* Right axis — cumulative balance / remaining debt areas */}
-        {hasBalanceItems && (
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            tickFormatter={formatShortNumber}
-            tick={{ fontSize: 11 }}
-            width={72}
-            domain={domains ? domains.right : ["auto", "auto"]}
-            ticks={rightTicks}
-            className="fill-muted-foreground"
-          />
-        )}
+        {/* Right axis — cumulative balance / remaining debt / cash areas */}
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tickFormatter={formatShortNumber}
+          tick={{ fontSize: 11 }}
+          width={72}
+          domain={domains.right}
+          ticks={rightTicks}
+          className="fill-muted-foreground"
+        />
 
         <Tooltip content={tooltipContent} />
 
@@ -301,9 +315,24 @@ export default function SimulationChart({ result, viewMode }: Props) {
 
         {/*
           Background areas rendered FIRST so they appear behind bars in SVG paint order.
-          Investment balance → positive area growing upward (right axis).
-          Loan remaining debt → negative area shrinking toward zero (right axis).
+          Cash renders first within the stack → bottom layer.
+          Investment balance → positive area on top of cash.
+          Loan remaining debt → negative area below cash.
         */}
+        <Area
+          yAxisId="right"
+          type="monotone"
+          dataKey={CASH_KEY}
+          fill="white"
+          fillOpacity={0.18}
+          stroke="white"
+          strokeOpacity={0.4}
+          strokeWidth={1}
+          stackId="balance-stack"
+          dot={false}
+          activeDot={false}
+          isAnimationActive={false}
+        />
         {balanceItems.map((item) => (
           <Area
             key={item.itemId + BG_SUFFIX}
