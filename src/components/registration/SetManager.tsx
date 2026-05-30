@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Save, Trash2 } from "lucide-react";
+import { CopyPlus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -140,40 +146,51 @@ export default function SetManager() {
 
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">保存</Label>
-          <div className="flex gap-2">
-            <Input
-              placeholder={currentSetName || "セット名を入力..."}
-              value={saveAsName}
-              onChange={(e) => setSaveAsName(e.target.value)}
-              className="flex-1 text-sm"
-            />
-            {currentSetId && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="shrink-0"
-                onClick={handleSave}
-                title="上書き保存"
-                disabled={items.length === 0}
-              >
-                <Save className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+          <TooltipProvider delayDuration={0}>
+            <div className="flex gap-2">
+              <Input
+                placeholder={currentSetName || "セット名を入力..."}
+                value={saveAsName}
+                onChange={(e) => setSaveAsName(e.target.value)}
+                className="flex-1 text-sm"
+              />
+              {currentSetId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={handleSave}
+                      disabled={items.length === 0}
+                    >
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>上書き保存</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={openSaveAsDialog}
+                    disabled={items.length === 0}
+                  >
+                    <CopyPlus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>別名で保存</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
           {currentSetName && (
             <p className="text-xs text-muted-foreground">
               現在: <span className="font-medium">{currentSetName}</span>
             </p>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={openSaveAsDialog}
-            disabled={items.length === 0}
-          >
-            別名で保存
-          </Button>
         </div>
       </div>
 
