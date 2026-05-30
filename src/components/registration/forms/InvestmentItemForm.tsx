@@ -64,6 +64,29 @@ export default function InvestmentItemForm({ value, onChange }: Props) {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>積立 開始月<span className="ml-1 text-xs text-muted-foreground">（未設定 = 投資開始月）</span></Label>
+          <Input
+            type="month"
+            value={value.contributionStartDate ? value.contributionStartDate.slice(0, 7) : ""}
+            onChange={(e) =>
+              update({ contributionStartDate: e.target.value ? e.target.value + "-01" : null })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>積立 終了月<span className="ml-1 text-xs text-muted-foreground">（未設定 = 終了なし）</span></Label>
+          <Input
+            type="month"
+            value={value.contributionEndDate ? value.contributionEndDate.slice(0, 7) : ""}
+            onChange={(e) =>
+              update({ contributionEndDate: e.target.value ? e.target.value + "-01" : null })
+            }
+          />
+        </div>
+      </div>
+
       <div className="flex items-center gap-3">
         <Switch
           checked={value.includeInitialInCashFlow}

@@ -11,6 +11,12 @@ export const investmentCalculator: Calculator<InvestmentItemConfig> = {
     const base = { year: ctx.startYear, month: ctx.startMonth };
     const investStart = parseYearMonth(config.startDate);
     const monthlyRate = config.annualInterestRate / 12;
+    const contribStart = config.contributionStartDate
+      ? parseYearMonth(config.contributionStartDate)
+      : investStart;
+    const contribEnd = config.contributionEndDate
+      ? parseYearMonth(config.contributionEndDate)
+      : null;
 
     // Build a lookup map: "YYYY-MM" -> total withdrawal amount
     const withdrawalMap = new Map<string, number>();
@@ -34,14 +40,19 @@ export const investmentCalculator: Calculator<InvestmentItemConfig> = {
         ? Math.min(withdrawalMap.get(key)!, balance)
         : 0;
 
+      const isContributing =
+        compareYm(current, contribStart) >= 0 &&
+        (contribEnd === null || compareYm(current, contribEnd) <= 0);
+      const contribution = isContributing ? config.monthlyContribution : 0;
+
       if (current.year === investStart.year && current.month === investStart.month) {
-        // First month: initial amount + first contribution, no interest yet
-        balance = config.initialAmount + config.monthlyContribution - withdrawal;
+        // First month: initial amount + first contribution (if in period), no interest yet
+        balance = config.initialAmount + contribution - withdrawal;
         balance = Math.max(0, balance);
         // Cash flow: outflows minus any withdrawal (withdrawal is inflow = positive)
         const amount = config.includeInitialInCashFlow
-          ? -(config.initialAmount + config.monthlyContribution) + withdrawal
-          : -config.monthlyContribution + withdrawal;
+          ? -(config.initialAmount + contribution) + withdrawal
+          : -contribution + withdrawal;
         result.push({
           year: current.year,
           month: current.month,
@@ -50,13 +61,13 @@ export const investmentCalculator: Calculator<InvestmentItemConfig> = {
         });
       } else {
         // Subsequent months: apply compound interest then add contribution, then subtract withdrawal
-        balance = balance * (1 + monthlyRate) + config.monthlyContribution - withdrawal;
+        balance = balance * (1 + monthlyRate) + contribution - withdrawal;
         balance = Math.max(0, balance);
         result.push({
           year: current.year,
           month: current.month,
           // Cash outflow: monthly contribution minus withdrawal received
-          amount: -config.monthlyContribution + withdrawal,
+          amount: -contribution + withdrawal,
           balance,
         });
       }

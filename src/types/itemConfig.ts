@@ -53,6 +53,10 @@ export interface InvestmentItemConfig extends ItemBase {
   monthlyContribution: number;
   annualInterestRate: number;
   startDate: string;
+  /** null = same as startDate */
+  contributionStartDate: string | null;
+  /** null = no end */
+  contributionEndDate: string | null;
   /** When true the initial deposit appears as a cash outflow in the first month's bar */
   includeInitialInCashFlow: boolean;
   specialWithdrawals: SpecialEvent[];

@@ -31,6 +31,7 @@ interface TooltipEntry {
   label: string;
   value: string;
   color: string;
+  valueColor: string;
 }
 
 interface CustomTooltipProps {
@@ -51,24 +52,27 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
 
       if (value === 0) return null;
 
+      const flowColor = value >= 0 ? "text-blue-600" : "text-red-600";
+
       if (dataKey === TOTAL_KEY) {
-        return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color ?? "" };
+        return { key: dataKey, label: "収支合計", value: formatShortNumber(value), color: entry.color ?? "", valueColor: flowColor };
       }
 
       if (dataKey === CASH_KEY) {
-        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: "white" };
+        return { key: dataKey, label: "手元キャッシュ", value: formatShortNumber(value), color: "white", valueColor: "text-green-600" };
       }
 
       if (dataKey.endsWith(BG_SUFFIX)) {
         const itemId = dataKey.slice(0, -BG_SUFFIX.length);
         const item = result.items.find((i) => i.itemId === itemId);
         const itemLabel = item ? `${item.itemName}（${item.balanceLabel}）` : dataKey;
-        return { key: dataKey, label: itemLabel, value: formatShortNumber(Math.abs(value)), color: entry.color ?? "" };
+        const balanceColor = item?.balanceLabel === "残高" ? "text-green-600" : "text-orange-500";
+        return { key: dataKey, label: itemLabel, value: formatShortNumber(Math.abs(value)), color: entry.color ?? "", valueColor: balanceColor };
       }
 
       const item = result.items.find((i) => i.itemId === dataKey);
       if (!item) return null;
-      return { key: dataKey, label: item.itemName, value: formatShortNumber(value), color: entry.color ?? "" };
+      return { key: dataKey, label: item.itemName, value: formatShortNumber(value), color: entry.color ?? "", valueColor: flowColor };
     })
     .filter((e): e is TooltipEntry => e !== null);
 
@@ -81,7 +85,7 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
         <div key={e.key} className="flex items-center gap-2 py-0.5">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
           <span className="text-muted-foreground">{e.label}:</span>
-          <span className="ml-auto pl-4 font-medium tabular-nums">{e.value}</span>
+          <span className={`ml-auto pl-4 font-medium tabular-nums ${e.valueColor}`}>{e.value}</span>
         </div>
       ))}
     </div>
