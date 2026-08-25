@@ -25,6 +25,10 @@ export default function ItemRegistrationPanel() {
     dispatch({ type: "DELETE_ITEM", payload: { id } });
   }
 
+  function handleReorder(reordered: ItemConfig[]) {
+    dispatch({ type: "REORDER_ITEMS", payload: reordered });
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border">
@@ -49,7 +53,13 @@ export default function ItemRegistrationPanel() {
 
         <Separator />
 
-        <ItemList items={items} onUpdate={handleUpdate} onDelete={handleDelete} onAdd={handleAdd} />
+        <ItemList
+          items={items}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onAdd={handleAdd}
+          onReorder={handleReorder}
+        />
       </div>
 
       <ItemFormDialog
