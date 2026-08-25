@@ -14,6 +14,8 @@ export interface AppState {
   savedSets: ItemSetSummary[];
   viewSettings: ViewSettings;
   darkMode: boolean;
+  /** Item hovered in the registration panel — its chart series is emphasised */
+  hoveredItemId: string | null;
 }
 
 const initialState: AppState = {
@@ -23,6 +25,7 @@ const initialState: AppState = {
   savedSets: [],
   viewSettings: loadViewSettings(),
   darkMode: loadDarkMode(),
+  hoveredItemId: null,
 };
 
 export const AppStateContext = createContext<AppState | null>(null);

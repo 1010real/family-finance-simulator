@@ -95,7 +95,12 @@ function CustomTooltip({ active, payload, label, result }: CustomTooltipProps) {
 interface Props {
   result: SimulationResult;
   viewMode: ViewMode;
+  /** When set, every series except this item's is dimmed */
+  hoveredItemId?: string | null;
 }
+
+/** Opacity applied to series that are not the hovered one */
+const DIM_OPACITY = 0.12;
 
 // ---------------------------------------------------------------------------
 // Y-axis zero-alignment helpers
@@ -249,11 +254,17 @@ export function buildChartData(result: SimulationResult, viewMode: ViewMode): Ch
 // Component
 // ---------------------------------------------------------------------------
 
-export default function SimulationChart({ result, viewMode }: Props) {
+export default function SimulationChart({ result, viewMode, hoveredItemId }: Props) {
   const data = buildChartData(result, viewMode);
   const balanceItems = result.items.filter((i) => i.isBalanceItem);
   // Right axis is always shown: cash balance is rendered there even when no loan/investment items exist
   const hasRightAxis = true;
+
+  // Only dim when the hovered item is actually charted
+  const emphasis = hoveredItemId && result.items.some((i) => i.itemId === hoveredItemId);
+  /** 1 when nothing is hovered or this series is the hovered one, dimmed otherwise */
+  const emphasisFactor = (itemId: string | null) =>
+    !emphasis || itemId === hoveredItemId ? 1 : DIM_OPACITY;
 
   // useMemo で要素を安定させる。毎レンダリングで新しい要素を渡すと
   // Recharts が「content が変わった」と判断して再マウントし、
@@ -328,32 +339,35 @@ export default function SimulationChart({ result, viewMode }: Props) {
           type="monotone"
           dataKey={CASH_KEY}
           fill="white"
-          fillOpacity={0.18}
+          fillOpacity={0.18 * emphasisFactor(null)}
           stroke="white"
-          strokeOpacity={0.4}
+          strokeOpacity={0.4 * emphasisFactor(null)}
           strokeWidth={1}
           stackId="balance-stack"
           dot={false}
           activeDot={false}
           isAnimationActive={false}
         />
-        {balanceItems.map((item) => (
-          <Area
-            key={item.itemId + BG_SUFFIX}
-            yAxisId="right"
-            type="monotone"
-            dataKey={item.itemId + BG_SUFFIX}
-            fill={item.color}
-            fillOpacity={0.18}
-            stroke={item.color}
-            strokeOpacity={0.4}
-            strokeWidth={1}
-            stackId="balance-stack"
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-          />
-        ))}
+        {balanceItems.map((item) => {
+          const isHovered = emphasis && item.itemId === hoveredItemId;
+          return (
+            <Area
+              key={item.itemId + BG_SUFFIX}
+              yAxisId="right"
+              type="monotone"
+              dataKey={item.itemId + BG_SUFFIX}
+              fill={item.color}
+              fillOpacity={isHovered ? 0.45 : 0.18 * emphasisFactor(item.itemId)}
+              stroke={item.color}
+              strokeOpacity={isHovered ? 1 : 0.4 * emphasisFactor(item.itemId)}
+              strokeWidth={isHovered ? 2 : 1}
+              stackId="balance-stack"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          );
+        })}
 
         {/*
           Cash-flow bars rendered AFTER areas — appear in front.
@@ -366,8 +380,10 @@ export default function SimulationChart({ result, viewMode }: Props) {
             dataKey={item.itemId}
             name={item.itemName}
             fill={item.color}
+            fillOpacity={emphasisFactor(item.itemId)}
             stackId="stack"
             maxBarSize={20}
+            isAnimationActive={false}
           />
         ))}
 
@@ -378,9 +394,11 @@ export default function SimulationChart({ result, viewMode }: Props) {
           dataKey={TOTAL_KEY}
           name="収支合計"
           stroke="hsl(var(--foreground))"
+          strokeOpacity={emphasisFactor(null)}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
+          isAnimationActive={false}
         />
       </ComposedChart>
     </ResponsiveContainer>

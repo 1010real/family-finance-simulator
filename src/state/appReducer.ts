@@ -22,6 +22,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         items: state.items.filter((item) => item.id !== action.payload.id),
+        // The card unmounts without firing mouseleave, so clear it here
+        hoveredItemId:
+          state.hoveredItemId === action.payload.id ? null : state.hoveredItemId,
       };
 
     case "REORDER_ITEMS":
@@ -55,6 +58,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case "SET_DARK_MODE":
       return { ...state, darkMode: action.payload };
+
+    case "SET_HOVERED_ITEM":
+      // Avoid a pointless re-render when the same item re-reports hover
+      if (state.hoveredItemId === action.payload) return state;
+      return { ...state, hoveredItemId: action.payload };
 
     default:
       return assertNever(action);
