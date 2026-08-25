@@ -99,8 +99,13 @@ interface Props {
   hoveredItemId?: string | null;
 }
 
-/** Opacity applied to series that are not the hovered one */
-const DIM_OPACITY = 0.12;
+/**
+ * Opacity applied to series that are not the hovered one. Kept high enough that
+ * the rest of the chart still reads as context rather than disappearing.
+ */
+const DIM_OPACITY = 0.35;
+/** Floor for dimmed area outlines so their shape stays traceable */
+const DIM_STROKE_FLOOR = 0.22;
 
 // ---------------------------------------------------------------------------
 // Y-axis zero-alignment helpers
@@ -341,7 +346,7 @@ export default function SimulationChart({ result, viewMode, hoveredItemId }: Pro
           fill="white"
           fillOpacity={0.18 * emphasisFactor(null)}
           stroke="white"
-          strokeOpacity={0.4 * emphasisFactor(null)}
+          strokeOpacity={Math.max(0.4 * emphasisFactor(null), DIM_STROKE_FLOOR)}
           strokeWidth={1}
           stackId="balance-stack"
           dot={false}
@@ -359,7 +364,9 @@ export default function SimulationChart({ result, viewMode, hoveredItemId }: Pro
               fill={item.color}
               fillOpacity={isHovered ? 0.45 : 0.18 * emphasisFactor(item.itemId)}
               stroke={item.color}
-              strokeOpacity={isHovered ? 1 : 0.4 * emphasisFactor(item.itemId)}
+              strokeOpacity={
+                isHovered ? 1 : Math.max(0.4 * emphasisFactor(item.itemId), DIM_STROKE_FLOOR)
+              }
               strokeWidth={isHovered ? 2 : 1}
               stackId="balance-stack"
               dot={false}
