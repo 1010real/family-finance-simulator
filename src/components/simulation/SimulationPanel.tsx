@@ -7,7 +7,7 @@ import { runSimulation } from "@/calculators";
 import type { CalculatorContext } from "@/calculators";
 
 export default function SimulationPanel() {
-  const { items, viewSettings } = useAppState();
+  const { items, viewSettings, hoveredItemId } = useAppState();
 
   const simulationResult = useMemo(() => {
     const ctx: CalculatorContext = {
@@ -31,7 +31,11 @@ export default function SimulationPanel() {
       <ChartLegend items={simulationResult.items} />
 
       <div className="flex-1 min-h-0 p-2">
-        <SimulationChart result={simulationResult} viewMode={viewSettings.viewMode} />
+        <SimulationChart
+          result={simulationResult}
+          viewMode={viewSettings.viewMode}
+          hoveredItemId={hoveredItemId}
+        />
       </div>
     </div>
   );

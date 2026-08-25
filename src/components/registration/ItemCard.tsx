@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import ItemFormDialog from "./ItemFormDialog";
+import { useAppDispatch } from "@/state/hooks";
 import type { ItemConfig } from "@/types/itemConfig";
 import { ITEM_TYPE_LABELS } from "@/types/itemConfig";
 import { formatShortNumber } from "@/lib/formatters";
@@ -37,10 +38,15 @@ export default function ItemCard({ item, usedColors, onUpdate, onDelete, onAdd, 
   const [editOpen, setEditOpen] = useState(false);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const dispatch = useAppDispatch();
 
   return (
     <>
-      <Card className="group relative">
+      <Card
+        className="group relative transition-shadow hover:shadow-md hover:ring-1 hover:ring-primary/40"
+        onMouseEnter={() => dispatch({ type: "SET_HOVERED_ITEM", payload: item.id })}
+        onMouseLeave={() => dispatch({ type: "SET_HOVERED_ITEM", payload: null })}
+      >
         <CardContent className="p-3">
           <div className="flex items-start gap-2">
             {/* Drag handle — arms HTML5 dragging on the wrapper in ItemList */}

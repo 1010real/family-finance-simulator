@@ -12,4 +12,5 @@ export type AppAction =
   | { type: "SET_CURRENT_SET_ID"; payload: string | null }
   | { type: "CLEAR_ITEMS" }
   | { type: "SET_VIEW_SETTINGS"; payload: Partial<ViewSettings> }
-  | { type: "SET_DARK_MODE"; payload: boolean };
+  | { type: "SET_DARK_MODE"; payload: boolean }
+  | { type: "SET_HOVERED_ITEM"; payload: string | null };
