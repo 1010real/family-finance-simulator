@@ -32,6 +32,7 @@ interface Props {
   onClose: () => void;
   onConfirm: (item: ItemConfig) => void;
   initialItem?: ItemConfig;
+  duplicateFrom?: ItemConfig;
   usedColors: string[]; // colors already in use — new items get a distinct color
 }
 
@@ -53,10 +54,14 @@ function buildDefault(type: ItemType, color: string): ItemConfig {
   }
 }
 
-export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, usedColors }: Props) {
+function makeDuplicateDraft(source: ItemConfig): ItemConfig {
+  return { ...source, id: uuidv4(), name: source.name + " のコピー" };
+}
+
+export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, duplicateFrom, usedColors }: Props) {
   const defaultColor = getNextColor(usedColors);
   const [draft, setDraft] = useState<ItemConfig>(
-    initialItem ?? buildDefault("fixed", defaultColor)
+    initialItem ?? (duplicateFrom ? makeDuplicateDraft(duplicateFrom) : buildDefault("fixed", defaultColor))
   );
 
   // Reset draft when dialog opens
@@ -64,7 +69,7 @@ export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, 
     if (!isOpen) {
       onClose();
     } else {
-      setDraft(initialItem ?? buildDefault("fixed", defaultColor));
+      setDraft(initialItem ?? (duplicateFrom ? makeDuplicateDraft(duplicateFrom) : buildDefault("fixed", defaultColor)));
     }
   }
 
@@ -136,7 +141,7 @@ export default function ItemFormDialog({ open, onClose, onConfirm, initialItem, 
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initialItem ? "項目を編集" : "項目を追加"}</DialogTitle>
+          <DialogTitle>{initialItem ? "項目を編集" : duplicateFrom ? "項目を複製" : "項目を追加"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

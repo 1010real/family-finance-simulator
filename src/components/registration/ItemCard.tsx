@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,9 @@ interface Props {
   usedColors: string[];
   onUpdate: (item: ItemConfig) => void;
   onDelete: (id: string) => void;
+  onAdd: (item: ItemConfig) => void;
+  /** Arms drag-and-drop on the wrapping element while the grip is held */
+  onHandlePress: () => void;
 }
 
 function getItemSummary(item: ItemConfig): string {
@@ -30,15 +33,25 @@ function getItemSummary(item: ItemConfig): string {
   }
 }
 
-export default function ItemCard({ item, usedColors, onUpdate, onDelete }: Props) {
+export default function ItemCard({ item, usedColors, onUpdate, onDelete, onAdd, onHandlePress }: Props) {
   const [editOpen, setEditOpen] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <>
       <Card className="group relative">
         <CardContent className="p-3">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-2">
+            {/* Drag handle — arms HTML5 dragging on the wrapper in ItemList */}
+            <div
+              className="mt-1 shrink-0 cursor-grab text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
+              title="ドラッグして並び替え"
+              onMouseDown={onHandlePress}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+
             {/* Clickable color dot — triggers native color picker */}
             <div className="mt-1 shrink-0">
               <div
@@ -70,6 +83,15 @@ export default function ItemCard({ item, usedColors, onUpdate, onDelete }: Props
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
+                title="複製"
+                onClick={() => setDuplicateOpen(true)}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
                 onClick={() => setEditOpen(true)}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -92,6 +114,14 @@ export default function ItemCard({ item, usedColors, onUpdate, onDelete }: Props
         onClose={() => setEditOpen(false)}
         onConfirm={onUpdate}
         initialItem={item}
+        usedColors={usedColors}
+      />
+
+      <ItemFormDialog
+        open={duplicateOpen}
+        onClose={() => setDuplicateOpen(false)}
+        onConfirm={onAdd}
+        duplicateFrom={item}
         usedColors={usedColors}
       />
     </>
