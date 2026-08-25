@@ -22,5 +22,7 @@ export interface SimulationResult {
 /** Aggregated chart data point (one per time label on X axis) */
 export interface ChartDataPoint {
   label: string; // "2025-01" or "2025"
-  [itemId: string]: number | string;
+  // null marks a balance series as absent for this period so Recharts breaks
+  // the area instead of drawing it — see buildChartData in SimulationChart
+  [itemId: string]: number | string | null;
 }
