@@ -189,6 +189,23 @@ function computeAlignedDomains(
 // Chart data builder
 // ---------------------------------------------------------------------------
 
+/**
+ * Rounds a balance for charting, mapping "no balance" to null.
+ *
+ * Balance areas share one stack under stackOffset="sign", which sorts series by
+ * `value >= 0` — so a zero lands on the POSITIVE side and gets drawn at the top
+ * of the cash + investment stack. For a loan whose debt has been repaid that
+ * paints a stray line far up in the positive region. Returning null instead
+ * makes Recharts treat the point as a break (Area.getComposedData checks the
+ * raw value for null when stacked) so nothing is drawn for that period.
+ *
+ * `rounded === 0` also catches -0, which would otherwise still stack positive.
+ */
+function balanceOrNull(balance: number | undefined): number | null {
+  const rounded = Math.round(balance ?? 0);
+  return rounded === 0 ? null : rounded;
+}
+
 export function buildChartData(result: SimulationResult, viewMode: ViewMode): ChartDataPoint[] {
   if (result.items.length === 0) return [];
   if (result.simulatedMonths === 0) return [];
@@ -209,7 +226,7 @@ export function buildChartData(result: SimulationResult, viewMode: ViewMode): Ch
         total += flow;
 
         if (item.isBalanceItem) {
-          point[item.itemId + BG_SUFFIX] = Math.round(d?.balance ?? 0);
+          point[item.itemId + BG_SUFFIX] = balanceOrNull(d?.balance);
         }
       }
       point[TOTAL_KEY] = Math.round(total);
@@ -235,7 +252,7 @@ export function buildChartData(result: SimulationResult, viewMode: ViewMode): Ch
       point[item.itemId] = Math.round(prev + dp.amount);
 
       if (item.isBalanceItem) {
-        point[item.itemId + BG_SUFFIX] = Math.round(dp.balance ?? 0);
+        point[item.itemId + BG_SUFFIX] = balanceOrNull(dp.balance);
       }
 
       yearTotals.set(dp.year, (yearTotals.get(dp.year) ?? 0) + dp.amount);
